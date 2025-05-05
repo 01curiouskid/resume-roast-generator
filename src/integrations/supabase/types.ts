@@ -9,7 +9,68 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      resumes: {
+        Row: {
+          content: string | null
+          created_at: string
+          expires_at: string
+          file_path: string
+          id: string
+          status: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          expires_at?: string
+          file_path: string
+          id?: string
+          status?: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          expires_at?: string
+          file_path?: string
+          id?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      roasts: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          resume_id: string
+          share_id: string
+          spicy_level: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          resume_id: string
+          share_id?: string
+          spicy_level?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          resume_id?: string
+          share_id?: string
+          spicy_level?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roasts_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

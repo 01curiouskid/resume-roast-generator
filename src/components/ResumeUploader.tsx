@@ -4,15 +4,17 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Upload, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import { uploadResume } from '@/services/resumeService';
 
 interface ResumeUploaderProps {
   className?: string;
-  onUpload: (file: File) => void;
+  onUpload: (file: File, resumeId: string) => void;
 }
 
 export function ResumeUploader({ className, onUpload }: ResumeUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -22,7 +24,7 @@ export function ResumeUploader({ className, onUpload }: ResumeUploaderProps) {
     }
   };
   
-  const validateAndProcessFile = (file: File) => {
+  const validateAndProcessFile = async (file: File) => {
     // Check if the file is a PDF
     if (file.type !== 'application/pdf') {
       toast.error("Please upload a PDF file", {
@@ -40,7 +42,30 @@ export function ResumeUploader({ className, onUpload }: ResumeUploaderProps) {
     }
     
     setFileName(file.name);
-    onUpload(file);
+    setIsUploading(true);
+    
+    try {
+      // Upload the file to Supabase
+      const response = await uploadResume(file);
+      
+      if (response.success && response.resumeId) {
+        toast.success("Resume uploaded successfully!", {
+          description: "We're ready to roast your professional life choices!"
+        });
+        onUpload(file, response.resumeId);
+      } else {
+        toast.error("Upload failed", {
+          description: response.error || "Something went wrong. Please try again."
+        });
+      }
+    } catch (error) {
+      toast.error("Upload failed", {
+        description: "Something went wrong. Please try again."
+      });
+      console.error("Upload error:", error);
+    } finally {
+      setIsUploading(false);
+    }
   };
   
   const handleDragOver = (e: React.DragEvent) => {
@@ -89,7 +114,12 @@ export function ResumeUploader({ className, onUpload }: ResumeUploaderProps) {
           fileName && "bg-muted"
         )}
       >
-        {fileName ? (
+        {isUploading ? (
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+            <p className="font-medium">Uploading resume...</p>
+          </div>
+        ) : fileName ? (
           <div className="flex flex-col items-center gap-3">
             <FileText className="h-10 w-10 text-primary animate-bounce-slow" />
             <p className="font-medium">{fileName}</p>

@@ -5,27 +5,32 @@ import { RandomTitle } from '@/components/RandomTitle';
 import { ResumeUploader } from '@/components/ResumeUploader';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
 
 const Index = () => {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [resumeId, setResumeId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showUploadError, setShowUploadError] = useState(false);
   
-  const handleUpload = useCallback((file: File) => {
+  const handleUpload = useCallback((file: File, id: string) => {
     setResumeFile(file);
-    // In Phase 1, we're just mocking the upload
-    toast.success("Resume uploaded successfully!", {
-      description: "We're ready to roast your professional life choices!"
-    });
+    setResumeId(id);
   }, []);
   
   const handleRoast = () => {
-    // This is just a placeholder for Phase 1
+    if (!resumeId) {
+      setShowUploadError(true);
+      return;
+    }
+    
     setIsLoading(true);
-    // Simulate loading time
+    // Simulate loading time for Phase 2
+    // In Phase 3, we'll replace with actual roast generation
     setTimeout(() => {
       setIsLoading(false);
       toast.info("Roasting feature coming soon!", {
-        description: "Phase 1 is just the UI. The roasting feature will be added in Phase 2!"
+        description: "Phase 2 includes file upload. The roasting feature will be added in Phase 3!"
       });
     }, 2000);
   };
@@ -60,6 +65,18 @@ const Index = () => {
           </div>
         )}
       </div>
+      
+      <AlertDialog open={showUploadError} onOpenChange={setShowUploadError}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Upload Error</AlertDialogTitle>
+          <AlertDialogDescription>
+            There was a problem with your resume upload. Please try uploading again.
+          </AlertDialogDescription>
+          <Button onClick={() => setShowUploadError(false)} className="mt-4">
+            OK
+          </Button>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };
