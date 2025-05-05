@@ -16,7 +16,7 @@ export async function uploadResume(file: File): Promise<ResumeUploadResponse> {
     // Create a unique file name to prevent collisions
     const fileExt = file.name.split('.').pop();
     const fileName = `${uuidv4()}.${fileExt}`;
-    const filePath = `public/${fileName}`;
+    const filePath = `${fileName}`;
 
     // Upload the file to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage

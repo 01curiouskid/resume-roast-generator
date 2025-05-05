@@ -10,7 +10,7 @@ const corsHeaders = {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const deepseekApiKey = Deno.env.get('DEEPSEEK_API_KEY');
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -54,19 +54,34 @@ serve(async (req) => {
       
     // If we don't have content, we need to extract it from the PDF
     let resumeContent = resume.content;
-    if (!resumeContent) {
-      // Simulate text extraction (In a real app, you would use a PDF extraction service)
-      resumeContent = "This is a simulated resume content. In a real application, we would extract the text from the PDF.";
-      
-      // Update the resume with the extracted content
-      await supabase
-        .from('resumes')
-        .update({ content: resumeContent })
-        .eq('id', resumeId);
+    if (!resumeContent && resume.file_path) {
+      try {
+        // Get the file from storage
+        const { data: fileData, error: fileError } = await supabase.storage
+          .from('resumes')
+          .download(resume.file_path);
+          
+        if (fileError) {
+          throw new Error(`Error downloading file: ${fileError.message}`);
+        }
+        
+        // Use PDF parsing library or API to extract text
+        const pdfText = await extractTextFromPDF(fileData);
+        resumeContent = pdfText;
+        
+        // Update the resume with the extracted content
+        await supabase
+          .from('resumes')
+          .update({ content: resumeContent })
+          .eq('id', resumeId);
+      } catch (error) {
+        console.error('Error extracting text from PDF:', error);
+        resumeContent = "Failed to extract text from PDF. Using fallback content for demonstration.";
+      }
     }
     
-    // Generate the roast using the OpenAI API
-    const roastContent = await generateRoastWithOpenAI(resumeContent);
+    // Generate the roast using the DeepSeek API
+    const roastContent = await generateRoastWithDeepSeek(resumeContent);
     
     // Create a new roast entry in the database
     const { data: roastData, error: roastError } = await supabase
@@ -115,21 +130,49 @@ serve(async (req) => {
   }
 });
 
-async function generateRoastWithOpenAI(resumeContent: string): Promise<string> {
-  if (!openAIApiKey) {
-    console.warn("No OpenAI API key set - using mock response");
+// Function to extract text from PDF
+async function extractTextFromPDF(pdfFile: Blob): Promise<string> {
+  try {
+    // Convert the PDF to base64
+    const arrayBuffer = await pdfFile.arrayBuffer();
+    const base64Pdf = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+    // Use PDF.js service to extract text (using a proxy service)
+    const response = await fetch('https://pdf-to-text.deno.dev/extract', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ pdf: base64Pdf }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to extract text: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.text || "Failed to extract text from PDF.";
+  } catch (error) {
+    console.error('Error in PDF text extraction:', error);
+    throw error;
+  }
+}
+
+async function generateRoastWithDeepSeek(resumeContent: string): Promise<string> {
+  if (!deepseekApiKey) {
+    console.warn("No DeepSeek API key set - using mock response");
     return mockRoastResponse(resumeContent);
   }
   
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openAIApiKey}`
+        'Authorization': `Bearer ${deepseekApiKey}`
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'deepseek-chat',
         messages: [
           {
             role: 'system',
@@ -151,13 +194,13 @@ async function generateRoastWithOpenAI(resumeContent: string): Promise<string> {
     
     const data = await response.json();
     if (data.error) {
-      console.error('OpenAI API error:', data.error);
+      console.error('DeepSeek API error:', data.error);
       return mockRoastResponse(resumeContent);
     }
     
     return data.choices[0].message.content;
   } catch (error) {
-    console.error('Error calling OpenAI API:', error);
+    console.error('Error calling DeepSeek API:', error);
     return mockRoastResponse(resumeContent);
   }
 }
